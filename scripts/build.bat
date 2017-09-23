@@ -1,3 +1,5 @@
+REM This is a windows-specific utility, but I just copy/paste the same build script no matter what
+
 setlocal
 REM If you want to build locally, this should point to your project folder
 SET GOPATH=C:\Source\GoProjects\yoursled
