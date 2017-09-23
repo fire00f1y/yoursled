@@ -9,7 +9,6 @@ import (
 	"log"
 	"bufio"
 	"os/exec"
-	"io"
 )
 
 var scriptLocation string
@@ -43,8 +42,10 @@ func runBatFiles(files []string, suffix string) (int) {
 			cmd := exec.Cmd{Path:sub, Dir: scriptLocation, Stdout: os.Stdout, Stderr: os.Stderr}
 			cmdStack = append(cmdStack, cmd)
 		}
+		log.Printf("Found %d subscripts inside %s\n", len(cmdStack), fileName)
 		ch := make(chan error, len(cmdStack))
 		for _,c := range cmdStack {
+			log.Printf("Running %s\n", c.Path)
 			go func(command exec.Cmd, channel chan error) {
 				channel <- command.Run()
 			} (c, ch)
