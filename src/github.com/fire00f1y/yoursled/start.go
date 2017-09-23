@@ -10,7 +10,7 @@ import (
 	"os/exec"
 )
 
-const simultaneousRuns = 2
+var simultaneousRuns = 2
 var scriptLocation string
 
 func runBatFiles(files []string, suffix string) (int) {
@@ -28,7 +28,7 @@ func runBatFiles(files []string, suffix string) (int) {
 	ch := make(chan error, len(cmdStack))
 	cmdChan := make(chan exec.Cmd, len(cmdStack))
 
-	for r := 1; r < simultaneousRuns; r++ {
+	for r := 1; r <= simultaneousRuns; r++ {
 		go runner(r, cmdChan, ch)
 	}
 	for _,c := range cmdStack {
@@ -60,8 +60,10 @@ func main() {
 	suffix := flag.String("ext", ".bat", "Extension of files to run.")
 	prefix := flag.String("base", "", "Base file name to run. If you have file1.bat, file2.bat you would give '-base=file' Give nothing if you want to run all files of that type")
 	filePath := flag.String("path", "", "Path to script files directory. Takes current directory if not given")
+	workers := flag.Int("runners", simultaneousRuns, "Number of scripts to execute simultaneously")
 	flag.Parse()
 
+	simultaneousRuns = *workers
 	if filePath != nil && *filePath != "" {
 		scriptLocation = *filePath
 	}
