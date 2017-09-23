@@ -7,10 +7,10 @@ import (
 	"strings"
 	"path/filepath"
 	"log"
-	"bufio"
 	"os/exec"
 )
 
+const simultaneousRuns = 2
 var scriptLocation string
 
 func runBatFiles(files []string, suffix string) (int) {
@@ -18,48 +18,40 @@ func runBatFiles(files []string, suffix string) (int) {
 	// To pause execution and see output
 	//bufio.NewReader(os.Stdin).ReadBytes('\n')
 
+	cmdStack := make([]exec.Cmd, 0)
 	for _,fileName := range files {
-		file, err := os.Open(scriptLocation + fileName)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		subFiles := make([]string, 0)
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.HasSuffix(line, suffix) {
-				subFiles = append(subFiles, line)
-			}
-		}
-		file.Close() // Not in defer due to looping through files. Could miss a close, but OS will handle
-		if len(subFiles) == 0 {
-			log.Printf("==== No scripts found to run in %s ====\n", fileName)
-			continue
-		}
-		cmdStack := make([]exec.Cmd, 0)
-		for _,sub := range subFiles {
-			cmd := exec.Cmd{Path:sub, Dir: scriptLocation, Stdout: os.Stdout, Stderr: os.Stderr}
-			cmdStack = append(cmdStack, cmd)
-		}
-		log.Printf("Found %d subscripts inside %s\n", len(cmdStack), fileName)
-		ch := make(chan error, len(cmdStack))
-		for _,c := range cmdStack {
-			log.Printf("Running %s\n", c.Path)
-			go func(command exec.Cmd, channel chan error) {
-				channel <- command.Run()
-			} (c, ch)
-		}
-		for i := 0; i < len(cmdStack); i++ {
-			err = <- ch
-			if err != nil {
-				log.Fatalln(err)
-			}
-		}
-		close(ch)
+		cmd := exec.Cmd{Path:fileName, Dir: scriptLocation, Stdout: os.Stdout, Stderr: os.Stderr}
+		cmdStack = append(cmdStack, cmd)
 	}
 
+	log.Printf("Size of cmdStack: %d\n", len(cmdStack))
+	ch := make(chan error, len(cmdStack))
+	cmdChan := make(chan exec.Cmd, len(cmdStack))
+
+	for r := 1; r < simultaneousRuns; r++ {
+		go runner(r, cmdChan, ch)
+	}
+	for _,c := range cmdStack {
+		cmdChan <- c
+	}
+	close(cmdChan)
+	for i := 0; i < len(cmdStack); i++ {
+		err := <- ch
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+	close(ch)
+
 	return 0
+}
+
+func runner(id int, jobs <-chan exec.Cmd, result chan<- error) {
+	for job := range jobs {
+		log.Printf("[%d] Started Running %s\n", id, job.Path)
+		result <- job.Run()
+		log.Printf("[%d] Finished Running %s\n", id, job.Path)
+	}
 }
 
 func main() {
