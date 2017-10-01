@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"log"
 	"os/exec"
+	"github.com/fire00f1y/yoursled/constants"
 )
 
 var simultaneousRuns = 2
@@ -24,7 +25,6 @@ func runBatFiles(files []string, suffix string) (int) {
 		cmdStack = append(cmdStack, cmd)
 	}
 
-	log.Printf("Size of cmdStack: %d\n", len(cmdStack))
 	ch := make(chan error, len(cmdStack))
 	cmdChan := make(chan exec.Cmd, len(cmdStack))
 
@@ -43,7 +43,7 @@ func runBatFiles(files []string, suffix string) (int) {
 	}
 	close(ch)
 
-	return 0
+	return len(cmdStack)
 }
 
 func runner(id int, jobs <-chan exec.Cmd, result chan<- error) {
@@ -61,6 +61,7 @@ func main() {
 	prefix := flag.String("base", "", "Base file name to run. If you have file1.bat, file2.bat you would give '-base=file' Give nothing if you want to run all files of that type")
 	filePath := flag.String("path", "", "Path to script files directory. Takes current directory if not given")
 	workers := flag.Int("runners", simultaneousRuns, "Number of scripts to execute simultaneously")
+	job := flag.String("job", constants.BatchScriptsJob, "Which utility job to run")
 	flag.Parse()
 
 	simultaneousRuns = *workers
@@ -71,9 +72,20 @@ func main() {
 		scriptLocation = scriptLocation + "/"
 	}
 
-	log.Printf("Looking for files to run in %s\n", scriptLocation)
-	runFiles := getFiles(*prefix, *suffix)
-	os.Exit(runBatFiles(runFiles, *suffix))
+	switch *job {
+	case constants.BatchScriptsJob:
+		{
+			log.Printf("Looking for files to run in %s\n", scriptLocation)
+			runFiles := getFiles(*prefix, *suffix)
+			log.Printf("Finished processing %d files\n", runBatFiles(runFiles, *suffix))
+		}
+	default:
+		{
+			log.Fatalf("Unknown job: %s\n", *job)
+		}
+	}
+
+	os.Exit(0)
 }
 
 func getFiles(prefix, suffix string) ([]string) {
