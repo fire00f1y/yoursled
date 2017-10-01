@@ -20,8 +20,8 @@ func runBatFiles(files []string, suffix string) (int) {
 	//bufio.NewReader(os.Stdin).ReadBytes('\n')
 
 	cmdStack := make([]exec.Cmd, 0)
-	for _,fileName := range files {
-		cmd := exec.Cmd{Path:fileName, Dir: scriptLocation, Stdout: os.Stdout, Stderr: os.Stderr}
+	for _, fileName := range files {
+		cmd := exec.Cmd{Path: fileName, Dir: scriptLocation, Stdout: os.Stdout, Stderr: os.Stderr}
 		cmdStack = append(cmdStack, cmd)
 	}
 
@@ -31,12 +31,12 @@ func runBatFiles(files []string, suffix string) (int) {
 	for r := 1; r <= simultaneousRuns; r++ {
 		go runner(r, cmdChan, ch)
 	}
-	for _,c := range cmdStack {
+	for _, c := range cmdStack {
 		cmdChan <- c
 	}
 	close(cmdChan)
 	for i := 0; i < len(cmdStack); i++ {
-		err := <- ch
+		err := <-ch
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -90,12 +90,12 @@ func main() {
 
 func getFiles(prefix, suffix string) ([]string) {
 	runFiles := make([]string, 0)
-	files,err := ioutil.ReadDir(scriptLocation)
+	files, err := ioutil.ReadDir(scriptLocation)
 	if err != nil {
 		log.Fatalf("YOU GOT PROBLEMS: %v\n", err)
 	}
 
-	for _,v := range files {
+	for _, v := range files {
 		if v.IsDir() {
 			continue
 		}
@@ -111,9 +111,10 @@ func getFiles(prefix, suffix string) ([]string) {
 }
 
 func getCurrentDir() (string) {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	lstat, err := os.Lstat(".")
+	folder, err := filepath.Abs(filepath.Dir(lstat.Name()))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error getting current dir: %v\n", err)
 	}
-	return dir
+	return folder
 }
